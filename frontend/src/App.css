@@ -1,0 +1,6 @@
+.console-shell {
+  min-height: 100vh;
+  padding: 2rem;
+  color: #b4c2d1;
+  background: radial-gradient(circle at 50% 30%, #0a1a26, #030712 70%);
+}
