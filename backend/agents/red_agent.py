@@ -4,8 +4,9 @@ from typing import Any
 
 
 PATH_QUERY = (
-    "MATCH p = shortestPath((src:Node {type: 'Internet'})-[:CONNECTS_TO* "
-    "{status: 'ACTIVE'}]->(dst:Node {type: 'Database'})) "
+    "MATCH (src:Node {type: 'Internet'}), (dst:Node {type: 'Database'}) "
+    "WITH shortestPath((src)-[:CONNECTS_TO*]->(dst)) AS p "
+    "WHERE p IS NOT NULL AND all(r IN relationships(p) WHERE r.status = 'ACTIVE') "
     "RETURN [n in nodes(p) | n.id] AS path, "
     "[r in relationships(p) | id(r)] AS rel_ids"
 )
