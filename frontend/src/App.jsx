@@ -1,26 +1,33 @@
-import { useEffect, useState } from 'react'
-import { Activity, AlertTriangle, Bot, Database, LockKeyhole, Network, Play, Radio, RotateCcw, ShieldCheck, Skull, Zap } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Activity, AlertTriangle, ChevronRight, Database, LockKeyhole, RotateCcw, Shield, Skull, Terminal } from 'lucide-react'
+import Graph from './components/Graph'
 import './App.css'
 
-const API = 'http://localhost:8000/api'
-const positions = { internet: [8, 50], vpn: [25, 23], web: [25, 76], identity: [47, 17], workstation: [47, 50], api: [47, 83], jump: [69, 29], database: [88, 50] }
-
-const initialGraph = { nodes: [], edges: [] }
+const API = 'http://localhost:8000'
+const emptyGraph = { nodes: [], edges: [] }
 
 function App() {
-  const [graph, setGraph] = useState(initialGraph)
+  const [graph, setGraph] = useState(emptyGraph)
   const [feed, setFeed] = useState([])
-  const [busy, setBusy] = useState(false)
+  const [selectedNode, setSelectedNode] = useState(null)
   const [connected, setConnected] = useState(false)
-  const [lastAction, setLastAction] = useState('Awaiting telemetry')
+  const [busy, setBusy] = useState(false)
+  const [qps, setQps] = useState('0.0')
+  const feedRef = useRef(null)
+  const requestsRef = useRef([])
 
   const refresh = async () => {
+    const now = Date.now()
+    requestsRef.current = [...requestsRef.current.filter((stamp) => now - stamp < 1000), now]
+    setQps(requestsRef.current.length.toFixed(1))
     try {
-      const [graphResponse, feedResponse] = await Promise.all([fetch(`${API}/graph`), fetch(`${API}/feed`)] )
-      if (!graphResponse.ok) throw new Error('API unavailable')
-      setGraph(await graphResponse.json())
+      const [graphResponse, feedResponse] = await Promise.all([fetch(`${API}/api/graph`), fetch(`${API}/api/feed`)] )
+      if (!graphResponse.ok || !feedResponse.ok) throw new Error('Telemetry unavailable')
+      const nextGraph = await graphResponse.json()
+      setGraph(nextGraph)
       setFeed(await feedResponse.json())
       setConnected(true)
+      setSelectedNode((current) => current ? nextGraph.nodes.find((node) => node.id === current.id) || null : null)
     } catch {
       setConnected(false)
     }
@@ -28,82 +35,53 @@ function App() {
 
   useEffect(() => {
     refresh()
-    const timer = setInterval(refresh, 3000)
+    const timer = setInterval(refresh, 1500)
     return () => clearInterval(timer)
   }, [])
 
-  const act = async (path, label) => {
+  useEffect(() => {
+    if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight
+  }, [feed])
+
+  const command = async (path) => {
     setBusy(true)
     try {
       const response = await fetch(`${API}${path}`, { method: 'POST' })
-      if (!response.ok) throw new Error('Action failed')
-      const payload = await response.json()
-      setGraph(payload.graph || payload)
-      setLastAction(payload.message || label)
+      if (!response.ok) throw new Error('Command rejected')
       await refresh()
-    } catch {
-      setLastAction('Action unavailable: connect to the command API')
     } finally {
       setBusy(false)
     }
   }
 
   const compromised = graph.nodes.filter((node) => node.status === 'COMPROMISED').length
-  const isolated = graph.nodes.filter((node) => node.status === 'ISOLATED').length
+  const defcon = compromised > 1 ? 'DEFCON 2' : compromised ? 'DEFCON 3' : 'DEFCON 5'
 
-  return (
-    <main className="console-shell">
-      <header className="topbar">
-        <div className="brand"><div className="brand-mark"><ShieldCheck size={22} /></div><div><strong>AEGIS SWARM</strong><span>AUTONOMOUS GRAPH IMMUNE SYSTEM</span></div></div>
-        <div className="header-status"><span className={`status-dot ${connected ? 'online' : ''}`} /> {connected ? 'FALKORDB LINKED' : 'LINK OFFLINE'} <span className="divider" /> <span className="mono">NODE 01 / SECTOR 7</span></div>
-      </header>
+  return <main className="min-h-screen bg-[#02060d] text-slate-300 selection:bg-cyan-400/20">
+    <header className="mx-auto flex max-w-[1600px] items-center justify-between border-b border-cyan-950/70 px-5 py-4 lg:px-8">
+      <div className="flex items-center gap-3"><div className="border border-cyan-700/70 p-2 text-cyan-300 shadow-[0_0_22px_rgba(34,211,238,.18)]"><Shield size={21} /></div><div><h1 className="text-sm font-semibold tracking-[.25em] text-slate-100">AEGIS SWARM</h1><p className="font-mono text-[9px] tracking-[.22em] text-slate-500">AUTONOMOUS GRAPH IMMUNE SYSTEM</p></div></div>
+      <div className="hidden items-center gap-5 font-mono text-[10px] uppercase tracking-widest md:flex"><span className="flex items-center gap-2 text-slate-500"><i className={`h-1.5 w-1.5 rounded-full ${connected ? 'bg-cyan-400 shadow-[0_0_8px_#22d3ee]' : 'bg-rose-500'}`} />{connected ? 'FalkorDB linked' : 'Link offline'}</span><span className="text-slate-600">Node 01 / Sector 7</span></div>
+    </header>
 
-      <section className="alert-strip"><AlertTriangle size={15} /><span>TACTICAL MONITORING ACTIVE</span><b>{compromised ? `${compromised} ASSETS COMPROMISED` : 'NO ACTIVE BREACHES'}</b><span className="alert-line" /></section>
-
-      <section className="dashboard-grid">
-        <aside className="side-panel left-panel">
-          <PanelTitle icon={<Activity size={15} />} title="Mission telemetry" />
-          <div className="metric-grid"><Metric value={graph.nodes.length || '--'} label="ASSETS" /><Metric value={graph.edges.length || '--'} label="LINKS" /><Metric value={compromised} label="BREACHED" danger /><Metric value={isolated} label="ISOLATED" /></div>
-          <div className="section-label">AGENT STATUS</div>
-          <AgentRow icon={<Skull size={16} />} name="RED / ATTACKER" state={compromised ? 'INTRUSION ACTIVE' : 'STANDBY'} danger />
-          <AgentRow icon={<ShieldCheck size={16} />} name="BLUE / SENTINEL" state="AUTONOMOUS DEFENSE" />
-          <div className="section-label">SYSTEM SIGNAL</div>
-          <div className="signal-row"><span>GRAPH CONSISTENCY</span><b>99.8%</b></div><div className="signal-track"><i /></div>
-          <div className="signal-row"><span>DEFENSE READINESS</span><b className="cyan">OPTIMAL</b></div><div className="signal-track cyan-track"><i /></div>
-        </aside>
-
-        <section className="network-panel">
-          <div className="panel-heading"><PanelTitle icon={<Network size={15} />} title="Live attack graph" /><span className="live-label"><span className="pulse" /> LIVE TOPOLOGY</span></div>
-          <div className="graph-canvas">
-            <div className="scanline" />
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Enterprise network topology">
-              {graph.edges.map((edge) => { const start = positions[edge.source]; const end = positions[edge.target]; return start && end ? <line key={`${edge.source}-${edge.target}`} x1={start[0]} y1={start[1]} x2={end[0]} y2={end[1]} className={`edge ${edge.status === 'ATTACK_VECTOR' ? 'attack-edge' : edge.status === 'ISOLATED' ? 'isolated-edge' : ''}`} /> : null })}
-            </svg>
-            {graph.nodes.map((node) => { const pos = positions[node.id] || [50, 50]; const isDb = node.type === 'DATABASE'; return <div key={node.id} className={`node ${node.status.toLowerCase()} ${isDb ? 'crown-jewel' : ''}`} style={{ left: `${pos[0]}%`, top: `${pos[1]}%` }}><div className="node-core">{isDb ? <Database size={16} /> : node.status === 'COMPROMISED' ? <AlertTriangle size={15} /> : <div className="node-glyph" />}</div><span>{node.name}</span><small>{node.status}</small></div> })}
-            {!graph.nodes.length && <div className="graph-empty"><Radio size={24} />Waiting for FalkorDB telemetry</div>}
-          </div>
-          <div className="graph-legend"><span><i className="legend-dot healthy" /> HEALTHY</span><span><i className="legend-dot breach" /> COMPROMISED</span><span><i className="legend-line" /> ATTACK VECTOR</span><span className="coordinates">X: 42.018 / Y: 77.442</span></div>
-        </section>
-
-        <aside className="side-panel right-panel">
-          <PanelTitle icon={<Zap size={15} />} title="Command deck" />
-          <p className="command-copy">Direct agent control. Each action mutates the shared graph state.</p>
-          <button className="command-button red-button" disabled={busy || !connected} onClick={() => act('/red/step', 'Red advanced one hop')}><Skull size={17} /><span><b>RED AGENT</b><small>EXECUTE NEXT INTRUSION HOP</small></span><Play size={15} /></button>
-          <button className="command-button blue-button" disabled={busy || !connected} onClick={() => act('/blue/defend', 'Blue deployed defense')}><ShieldCheck size={17} /><span><b>BLUE SENTINEL</b><small>IDENTIFY & SEVER CHOKEPOINT</small></span><Play size={15} /></button>
-          <button className="reset-button" disabled={busy || !connected} onClick={() => act('/reset', 'Topology reset')}><RotateCcw size={14} /> RESET SIMULATION</button>
-          <div className="action-result"><span>LAST ACTION</span><p>{lastAction}</p></div>
-          <div className="lock-note"><LockKeyhole size={14} /> MUTATIONS REQUIRE ACTIVE LINK</div>
-        </aside>
+    <div className="mx-auto max-w-[1600px] px-5 lg:px-8"><section className="flex items-center gap-3 border-b border-rose-950/60 py-3 font-mono text-[10px] uppercase tracking-[.17em] text-rose-400"><AlertTriangle size={14} /><span>Threat posture: {compromised ? 'active breach detected' : 'monitoring active'}</span><span className="ml-auto text-slate-600">{graph.nodes.length} assets / {graph.edges.length} links</span></section>
+      <section className="grid grid-cols-1 gap-4 border-b border-cyan-950/70 py-5 lg:grid-cols-[minmax(0,7fr)_minmax(290px,3fr)]">
+        <div className="min-w-0"><div className="mb-3 flex items-center justify-between"><span className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[.2em] text-cyan-400"><Activity size={14} />Live attack graph</span><span className="font-mono text-[9px] uppercase tracking-widest text-slate-600">Radial topology / {graph.nodes.length ? 'streaming' : 'awaiting'}</span></div><div className="h-130 lg:h-162.5"><Graph graph={graph} selectedNode={selectedNode} onSelectNode={setSelectedNode} /></div></div>
+        <aside className="flex min-h-130 flex-col gap-4 lg:min-h-0"><Inspector node={selectedNode} onSever={() => command('/api/blue/defend')} disabled={busy || !connected} /><Feed events={feed} feedRef={feedRef} /></aside>
       </section>
-
-      <section className="feed-panel"><div className="feed-header"><PanelTitle icon={<Bot size={15} />} title="Agent reasoning feed" /><span className="mono">{feed.length} EVENTS / CHRONOLOGICAL</span></div><div className="feed-list">{feed.slice().reverse().slice(0, 6).map((event, index) => <div className="feed-event" key={`${event.timestamp}-${index}`}><span className={`agent-tag ${event.agent.toLowerCase()}`}>{event.agent}</span><time>{new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time><p>{event.message}</p><span className={`event-type ${event.type.toLowerCase()}`}>{event.type}</span></div>)}{!feed.length && <div className="feed-empty">No agent events received.</div>}</div></section>
-      <footer><span>AEGIS SWARM // FALKORDB SHARED-STATE BLACKBOARD</span><span className="mono">ENCRYPTED TELEMETRY CHANNEL <span className="status-dot online" /></span></footer>
-    </main>
-  )
+      <ControlDeck busy={busy || !connected} onCommand={command} defcon={defcon} qps={qps} />
+    </div>
+    <footer className="mx-auto flex max-w-[1600px] justify-between px-5 py-4 font-mono text-[9px] uppercase tracking-widest text-slate-600 lg:px-8"><span>AEGIS // FALKORDB SHARED-STATE BLACKBOARD</span><span>Encrypted telemetry <i className="ml-2 inline-block h-1.5 w-1.5 rounded-full bg-cyan-400" /></span></footer>
+  </main>
 }
 
-function PanelTitle({ icon, title }) { return <div className="panel-title">{icon}<span>{title}</span></div> }
-function Metric({ value, label, danger }) { return <div className={`metric ${danger ? 'danger' : ''}`}><strong>{value}</strong><span>{label}</span></div> }
-function AgentRow({ icon, name, state, danger }) { return <div className="agent-row">{icon}<div><b>{name}</b><span className={danger ? 'red' : 'cyan'}>{state}</span></div><span className={`agent-indicator ${danger ? 'red-bg' : ''}`} /></div> }
+function Inspector({ node, onSever, disabled }) {
+  return <section className="border border-cyan-950/70 bg-[#050d15]/90 p-4"><div className="mb-5 flex items-center justify-between"><span className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[.2em] text-slate-200"><Database size={14} className="text-cyan-400" />Node inspector</span><span className="font-mono text-[9px] text-slate-600">{node ? 'SELECTED' : 'NO TARGET'}</span></div>{node ? <><div className="mb-5 border-l-2 border-cyan-400 pl-3"><p className="font-mono text-[10px] text-cyan-400">{node.id}</p><h2 className="mt-1 text-lg font-medium text-slate-100">{node.name}</h2><p className="mt-1 font-mono text-[9px] uppercase tracking-widest text-slate-500">{node.type} // {node.status}</p></div><Score label="BETWEENNESS CENTRALITY" value={node.centrality} /><div className="mt-4 flex items-end justify-between border-t border-cyan-950/70 pt-4"><span className="font-mono text-[10px] uppercase tracking-widest text-slate-500">PageRank score</span><strong className="font-mono text-xl text-cyan-300">{Number(node.pagerank).toFixed(2)}</strong></div><button onClick={onSever} disabled={disabled} className="mt-5 flex w-full items-center justify-center gap-2 border border-rose-800/70 bg-rose-950/20 py-3 font-mono text-[10px] uppercase tracking-widest text-rose-400 transition hover:bg-rose-900/30 disabled:cursor-not-allowed disabled:opacity-40"><LockKeyhole size={14} /> Sever edge</button></> : <div className="grid min-h-45 place-items-center text-center font-mono text-[10px] uppercase tracking-widest text-slate-600"><span><ChevronRight className="mx-auto mb-2 text-cyan-700" />Select a graph node<br />to inspect telemetry</span></div>}</section>
+}
+
+function Score({ label, value }) { return <div><div className="mb-2 flex justify-between font-mono text-[9px] uppercase tracking-widest text-slate-500"><span>{label}</span><span className="text-cyan-300">{Number(value).toFixed(2)}</span></div><div className="h-1 bg-slate-800"><div className="h-full bg-cyan-400 shadow-[0_0_10px_#22d3ee]" style={{ width: `${Math.min(Number(value) * 100, 100)}%` }} /></div></div> }
+
+function Feed({ events, feedRef }) { return <section className="flex min-h-62.5 flex-1 flex-col border border-cyan-950/70 bg-[#030a11]"><div className="flex items-center justify-between border-b border-cyan-950/70 px-4 py-3"><span className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[.2em] text-slate-200"><Terminal size={14} className="text-cyan-400" />Agent cognitive feed</span><span className="font-mono text-[9px] text-slate-600">{events.length} events</span></div><div ref={feedRef} className="flex-1 space-y-3 overflow-y-auto p-4 font-mono text-[10px] leading-relaxed">{events.length ? events.map((event, index) => <div key={`${event.timestamp}-${index}`} className="border-l border-cyan-900/70 pl-3"><div className="flex gap-2 text-[9px]"><span className={event.agent === 'RED' ? 'text-rose-400' : event.agent === 'BLUE' ? 'text-cyan-400' : 'text-amber-400'}>[{event.agent}]</span><time className="text-slate-600">{new Date(event.timestamp).toLocaleTimeString()}</time></div><p className="mt-1 text-slate-400">{event.message}</p></div>) : <p className="text-slate-600">// Awaiting agent telemetry...</p>}</div></section> }
+
+function ControlDeck({ busy, onCommand, defcon, qps }) { return <section className="grid gap-3 border-x border-b border-cyan-950/70 bg-[#050d15] p-4 md:grid-cols-[1fr_1fr_1fr_auto] md:items-center"><button disabled={busy} onClick={() => onCommand('/api/red/step')} className="flex items-center justify-center gap-2 border border-rose-800/70 bg-rose-950/20 px-4 py-3 font-mono text-[10px] uppercase tracking-widest text-rose-400 transition hover:bg-rose-900/30 disabled:opacity-40"><Skull size={15} />Step red attack</button><button disabled={busy} onClick={() => onCommand('/api/blue/defend')} className="flex items-center justify-center gap-2 border border-cyan-700/70 bg-cyan-950/20 px-4 py-3 font-mono text-[10px] uppercase tracking-widest text-cyan-300 transition hover:bg-cyan-900/30 disabled:opacity-40"><Shield size={15} />Engage blue defense</button><button disabled={busy} onClick={() => onCommand('/api/reset')} className="flex items-center justify-center gap-2 border border-slate-700 px-4 py-3 font-mono text-[10px] uppercase tracking-widest text-slate-400 transition hover:bg-slate-800 disabled:opacity-40"><RotateCcw size={14} />Reset topology</button><div className="flex justify-end gap-5 font-mono text-[9px] uppercase tracking-widest text-slate-500"><span><b className="block text-rose-400">{defcon}</b>Threat level</span><span><b className="block text-cyan-300">{qps}</b>Cypher QPS</span></div></section> }
 
 export default App

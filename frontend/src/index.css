@@ -1,12 +1,13 @@
-:root {
-  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
-  color: #b4c2d1;
-  background: #030712;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-}
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
 
+:root { font-family: 'Space Grotesk', sans-serif; color: #c7d4dc; background: #02060d; font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; }
 button { font: inherit; }
+.font-mono { font-family: 'IBM Plex Mono', monospace; }
+.tactical-grid { background-image: linear-gradient(rgba(31, 87, 107, .1) 1px, transparent 1px), linear-gradient(90deg, rgba(31, 87, 107, .1) 1px, transparent 1px); background-size: 32px 32px; }
+.scanline { animation: scan 5s linear infinite; background: linear-gradient(180deg, transparent, rgba(34, 211, 238, .12), transparent); height: 3px; left: 0; position: absolute; top: 0; width: 100%; }
+@keyframes scan { from { transform: translateY(-5px); } to { transform: translateY(560px); } }
+.dash-flow { animation: flow 1.6s linear infinite; }
+@keyframes flow { to { stroke-dashoffset: -28; } }
