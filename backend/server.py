@@ -10,10 +10,12 @@ try:
     from .agents.blue_agent import BlueAgent
     from .agents.red_agent import RedAgent
     from .database import get_graph
+    from .seeder import seed_database
 except ImportError:
     from agents.blue_agent import BlueAgent
     from agents.red_agent import RedAgent
     from database import get_graph
+    from seeder import seed_database
 
 
 app = FastAPI(title="Aegis Swarm API", version="1.0.0")
@@ -70,6 +72,18 @@ def blue_defend() -> dict[str, str]:
 @app.get("/api/feed")
 def feed() -> list[dict[str, str]]:
     return feed_events
+
+
+@app.post("/api/reset")
+def reset() -> dict[str, str]:
+    def reset_graph() -> dict[str, str]:
+        seed_database()
+        feed_events.clear()
+        message = "Baseline topology restored"
+        _append_event("SYSTEM", message, "RESET")
+        return {"status": "ok", "message": message}
+
+    return _run(reset_graph)
 
 
 @app.get("/api/graph")

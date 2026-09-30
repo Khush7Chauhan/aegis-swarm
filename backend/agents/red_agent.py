@@ -16,6 +16,14 @@ PATH_QUERY = (
     "WHERE all(r IN relationships(p) WHERE r.status = 'ACTIVE') "
     "RETURN [n IN nodes(p) | n.id] AS path_nodes"
 )
+ACTIVE_PATH_FALLBACK_QUERY = (
+    "MATCH p = (src:Node {type: 'Internet'})-[:CONNECTS_TO*]->"
+    "(dst:Node {type: 'Database'}) "
+    "WHERE all(r IN relationships(p) WHERE r.status = 'ACTIVE') "
+    "WITH p, length(p) AS path_length "
+    "ORDER BY path_length LIMIT 1 "
+    "RETURN [n IN nodes(p) | n.id] AS path_nodes"
+)
 
 
 class RedAgent:
@@ -31,8 +39,14 @@ class RedAgent:
     def step(self, graph: Any | None = None) -> str:
         """Compromise the first healthy node on the shortest active path."""
         active_graph = graph or self.graph
-        result = active_graph.query(PATH_QUERY)
+        try:
+            result = active_graph.query(PATH_QUERY)
+        except Exception:
+            result = active_graph.query(ACTIVE_PATH_FALLBACK_QUERY)
         rows = self._rows(result)
+        if not rows:
+            result = active_graph.query(ACTIVE_PATH_FALLBACK_QUERY)
+            rows = self._rows(result)
         if not rows or not rows[0][0]:
             return "Attack blocked: No route to crown jewel"
 
