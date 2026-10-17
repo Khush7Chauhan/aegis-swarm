@@ -1,4 +1,11 @@
-"""Seed the Aegis enterprise network topology in FalkorDB."""
+"""Seed the Aegis enterprise network topology in FalkorDB.
+
+The ``centrality`` and ``pagerank`` values written here are a **seeded
+architectural-risk baseline** (hand-tuned for the five-node demo topology), not
+live analytics. They are tagged ``*_source: 'seed'`` and are overwritten by
+``graph_analysis.refresh_metrics()`` on reset/startup with values actually
+computed from the live graph whenever FalkorDB exposes the required algorithm.
+"""
 
 from database import execute_query
 
@@ -7,6 +14,7 @@ def seed_database() -> None:
     """Replace the Aegis graph with the baseline five-node topology."""
     execute_query("MATCH (n) DETACH DELETE n")
 
+    # (id, name, type, centrality, pagerank) -- see module docstring re: seeding.
     nodes = [
         ("gw-1", "PUBLIC-GW", "Internet", 0.12, 0.04),
         ("web-1", "WEB-AUTH-01", "Gateway", 0.68, 0.22),
@@ -17,7 +25,8 @@ def seed_database() -> None:
     for node_id, name, node_type, centrality, pagerank in nodes:
         execute_query(
             "CREATE (n:Node {id: $id, name: $name, type: $type, status: 'HEALTHY', "
-            "centrality: $centrality, pagerank: $pagerank})",
+            "centrality: $centrality, pagerank: $pagerank, "
+            "centrality_source: 'seed', pagerank_source: 'seed'})",
             {
                 "id": node_id,
                 "name": name,
