@@ -42,6 +42,15 @@ def database_reachability_remaining(graph: Any) -> bool:
     return bool(rows and rows[0][0])
 
 
+DATABASE_STATUS_QUERY = "MATCH (n:Node {type: 'Database'}) RETURN n.status"
+
+
+def database_compromised(graph: Any) -> bool:
+    """True when the crown-jewel Database node has been breached by Red."""
+    rows = _rows(graph.query(DATABASE_STATUS_QUERY))
+    return any(row[0] == "COMPROMISED" for row in rows)
+
+
 # --------------------------------------------------------------------------- #
 # Audit / reporting queries
 # --------------------------------------------------------------------------- #

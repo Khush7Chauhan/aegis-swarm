@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import uuid
 from typing import Any
 
 from dotenv import load_dotenv
@@ -65,7 +66,7 @@ SEVER_EDGE_QUERY = (
 WRITE_INCIDENT_QUERY = (
     "MATCH (source:Node {id: $source}) "
     "CREATE (source)-[:GENERATED]->(:IncidentReport {"
-    "agent: 'Blue Sentinel', reasoning: $reason, severity: 'HIGH', "
+    "id: $incident_id, agent: 'Blue Sentinel', reasoning: $reason, severity: 'HIGH', "
     "source: $source, target: $target, timestamp: timestamp()})"
 )
 DB_VALIDATE_EDGE_QUERY = (
@@ -265,7 +266,12 @@ class BlueAgent:
         )
         self.graph.query(
             WRITE_INCIDENT_QUERY,
-            {"source": compromised_node, "target": target_downstream_node, "reason": ai_reasoning},
+            {
+                "source": compromised_node,
+                "target": target_downstream_node,
+                "reason": ai_reasoning,
+                "incident_id": "IR-%s" % uuid.uuid4().hex[:12],
+            },
         )
         mutation_result = {
             "severed": True,
