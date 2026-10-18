@@ -1,87 +1,180 @@
-Aegis Swarm: Autonomous Cyber-Warfare on FalkorDB
-Built for the WeMakeDevs Graph Hacks (Track 2: Agent Memory & Coordination).
+# Aegis Swarm
 
-Aegis Swarm is a real-time, multi-agent cybersecurity simulation where AI agents do not communicate via text. Instead, they coordinate entirely through Graph Stigmergy—reading and mutating a live enterprise network topology on FalkorDB.
+Aegis Swarm is a real-time, multi-agent cybersecurity simulation. The Red
+attacker and Blue defender coordinate through graph stigmergy by reading and
+mutating a live enterprise network topology stored in FalkorDB.
 
-🧠 Core Architecture
-The Red Probe (Attacker): Uses mathematical openCypher shortest-path algorithms to hunt down vulnerabilities and mutate network nodes to COMPROMISED.
+## Features
 
-The Blue Sentinel (Defender): A GPT-4o-mini agent wrapped in a ReAct framework. It evaluates egress edges and downstream centrality to sever attack vectors, isolating the blast radius (QUARANTINED).
+- **Red Probe:** Finds attack paths through the graph and compromises nodes.
+- **Blue Sentinel:** Evaluates the topology and severs attack vectors.
+- **Graph memory:** Stores tactical defense reasoning as incident reports.
+- **Live console:** Displays the topology, event feed, metrics, and simulation
+  controls in a React interface.
 
-Episodic Graph Memory: The Blue agent writes its tactical defense reasoning directly back into FalkorDB as permanent IncidentReport nodes, allowing it to query its own past memory for future defense maneuvers.
+## Project Structure
 
-🛠 Tech Stack
-Database: FalkorDB (Local Docker Container)
+```text
+aegis-swarm/
+├── backend/     FastAPI server, agents, graph logic, and tests
+└── frontend/    React/Vite tactical console
+```
 
-Backend: FastAPI, Python, asyncio, OpenAI SDK (GPT-4o-mini)
+## Tech Stack
 
-Frontend: React, Vite, Tailwind CSS (Norrvik Brutalist UI)
+- **Backend:** Python, FastAPI, asyncio, OpenAI SDK
+- **Database:** FalkorDB
+- **Frontend:** React, Vite, Tailwind CSS, Lucide React
 
-🚀 Setup & Installation
-Prerequisites
-Docker (to run FalkorDB locally)
+## Prerequisites
 
-Python 3.10+ (for the FastAPI backend)
+Install the following before starting:
 
-Node.js 18+ & npm (for the React frontend)
+- [Git](https://git-scm.com/)
+- [Python 3.11+](https://www.python.org/downloads/)
+- [Node.js 18+](https://nodejs.org/)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- An OpenAI API key for Blue Sentinel decisions
 
-OpenAI API Key (for the Blue Sentinel agent)
+## 1. Clone the Repository
 
-1. Start FalkorDB
-The easiest way to run FalkorDB is via Docker. Open a new terminal and run:
+Run these commands in PowerShell:
 
-Bash
-docker run -p 6379:6379 -p 3000:3000 falkordb/falkordb:latest
-The database will now be accessible locally on port 6379.
+```powershell
+git clone https://github.com/Khush7Chauhan/aegis-swarm.git
+Set-Location .\aegis-swarm
+```
 
-2. Configure the Backend
-Open a new terminal and navigate to the backend directory.
+## 2. Start FalkorDB
 
-Bash
-cd backend
+Start FalkorDB in Docker:
 
-# Create and activate a virtual environment (Windows)
-python -m venv venv
-venv\Scripts\activate
+```powershell
+docker run --name aegis-falkordb -p 6379:6379 -d falkordb/falkordb:latest
+```
 
-# Create and activate a virtual environment (Mac/Linux)
-python3 -m venv venv
-source venv/bin/activate
+If the container already exists, start it with:
 
-# Install dependencies
-pip install -r requirements.txt
-Create a .env file in the root of the backend folder and add your OpenAI key:
+```powershell
+docker start aegis-falkordb
+```
 
-Code snippet
-OPENAI_API_KEY="your-api-key-here"
+## 3. Set Up the Backend
+
+Open a PowerShell terminal from the repository root:
+
+```powershell
+Set-Location .\backend
+py -m venv venv
+.\venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+Create `backend\.env` and add your API key:
+
+```dotenv
+OPENAI_API_KEY=your-api-key-here
+```
+
 Start the FastAPI server:
 
-Bash
-uvicorn server:app --reload
-The backend will run on http://localhost:8000.
+```powershell
+python -m uvicorn server:app --reload --host 0.0.0.0 --port 8000
+```
 
-3. Configure the Frontend
-Open a new terminal and navigate to the frontend directory.
+The API is available at <http://localhost:8000>. Interactive API
+documentation is available at <http://localhost:8000/docs>.
 
-Bash
-cd frontend
+Keep this terminal running.
 
-# Install dependencies
+## 4. Set Up the Frontend
+
+Open a second PowerShell terminal from the repository root:
+
+```powershell
+Set-Location .\aegis-swarm\frontend
 npm install
-
-# Start the Vite development server
 npm run dev
-The frontend will run on http://localhost:5173.
+```
 
-🕹 Usage Instructions
-Open http://localhost:5173 in your browser.
+Open the console at <http://localhost:5173>.
 
-The initial graph state will load from FalkorDB automatically.
+The frontend connects to `http://localhost:8000` by default. To use a
+different backend URL, create `frontend\.env.local`:
 
-Step Red Attack: Click to execute a single openCypher traversal. Watch the graph mutate as a node is compromised.
+```dotenv
+VITE_API_BASE=http://localhost:8000
+```
 
-Engage Blue Defense: Click to trigger the ReAct loop. Blue will evaluate the topology, sever the egress edge, and write a purple IncidentReport memory node to the database.
+## Common Commands
 
-Engage Autonomous Swarm: Starts an asyncio background loop on the server. Agents will autonomously attack and defend the network in real-time until all routes to the database are severed.
+Run these commands from `frontend\`:
 
-Show Agent Memory: Toggle this to visualize the AI's forensic reasoning nodes directly on the graph canvas. Clicking an IncidentReport node will display the exact timestamp and ReAct logic in the sidebar.
+```powershell
+# Start the development server
+npm run dev
+
+# Run the linter
+npm run lint
+
+# Create a production build
+npm run build
+
+# Preview the production build
+npm run preview
+```
+
+Run these commands from `backend\`:
+
+```powershell
+# Start the API with hot reload
+python -m uvicorn server:app --reload --host 0.0.0.0 --port 8000
+
+# Re-seed the baseline graph
+python seeder.py
+
+# Run backend tests, when pytest is installed
+python -m pytest tests
+```
+
+## Usage
+
+1. Open <http://localhost:5173>.
+2. Use **Red Attack** to execute an attacker step.
+3. Use **Blue Defense** to trigger a defender response.
+4. Use **Engage Autonomous Swarm** to run the background simulation.
+5. Enable **Show Agent Memory** to display incident reports on the graph.
+
+## Troubleshooting
+
+### PowerShell blocks virtual-environment activation
+
+Run this once as your user:
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+### FalkorDB connection errors
+
+Confirm that the container is running and port `6379` is available:
+
+```powershell
+docker ps
+Test-NetConnection localhost -Port 6379
+```
+
+### Port 8000 or 5173 is already in use
+
+Stop the process using the port, or start the service on another port. If the
+backend port changes, update `VITE_API_BASE` in `frontend\.env.local`.
+
+## Stopping the Services
+
+Stop the frontend and backend with `Ctrl+C` in their terminals. Stop FalkorDB
+with:
+
+```powershell
+docker stop aegis-falkordb
+```
