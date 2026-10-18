@@ -9,9 +9,7 @@ const REQUEST_TIMEOUT_MS = 8000
 const COMMAND_TIMEOUT_MS = 30000
 const EMPTY_GRAPH = { nodes: [], edges: [], metrics: {} }
 
-// Brutalist control: transparent, hairline border, solid white on hover.
 const BTN = 'flex items-center justify-center gap-2 border border-[#27272a] px-4 py-3 font-mono text-[10px] uppercase tracking-[0.2em] text-[#e4e4e7] transition-colors hover:border-white hover:bg-white hover:text-black disabled:pointer-events-none disabled:opacity-30'
-// Accent controls mirror the red/blue agent semantics at the action layer.
 const RED_BTN = 'flex items-center justify-center gap-2 border border-[#ff4444] bg-[#ff4444]/5 px-4 py-3 font-mono text-[10px] uppercase tracking-[0.2em] text-[#ff4444] transition-colors hover:bg-[#ff4444] hover:text-black disabled:pointer-events-none disabled:opacity-30'
 const BLUE_BTN = 'flex items-center justify-center gap-2 border border-[#3b82f6] bg-[#3b82f6]/5 px-4 py-3 font-mono text-[10px] uppercase tracking-[0.2em] text-[#3b82f6] transition-colors hover:bg-[#3b82f6] hover:text-black disabled:pointer-events-none disabled:opacity-30'
 
@@ -23,12 +21,8 @@ async function fetchJson(path, options = {}) {
     const response = await fetch(`${API}${path}`, { ...init, signal: controller.signal })
     if (!response.ok) {
       let detail = `${init.method || 'GET'} ${path} failed (HTTP ${response.status})`
-      try {
-        const body = await response.json()
-        if (body?.detail) detail = body.detail
-      } catch {
-        /* non-JSON error body, keep the status message */
-      }
+      const body = await response.json().catch(() => null)
+      if (body?.detail) detail = body.detail
       throw new Error(detail)
     }
     return await response.json()
@@ -70,7 +64,6 @@ function App() {
   const showMemoryRef = useRef(false)
 
   const refresh = useCallback(async () => {
-    // Cancel any in-flight poll so a manual command always re-fetches immediately.
     pollRef.current?.abort()
     const controller = new AbortController()
     pollRef.current = controller
@@ -118,7 +111,6 @@ function App() {
     }
   }, [refresh])
 
-  // Re-fetch immediately when the forensic memory overlay is toggled.
   useEffect(() => {
     if (showMemoryRef.current === showMemory) return
     showMemoryRef.current = showMemory
@@ -155,7 +147,6 @@ function App() {
   const toggleSwarm = useCallback(async () => {
     const next = !isSwarmActive
     const path = next ? '/api/simulation/start' : '/api/simulation/stop'
-    // Optimistic flip so the toggle responds instantly, then reconcile.
     setIsSwarmActive(next)
     setSimulation({ running: next, status: next ? 'ACTIVE' : 'IDLE' })
     setBusy(path)
@@ -170,7 +161,7 @@ function App() {
       setNotice(body?.message || 'Autonomous command acknowledged')
       await refresh()
     } catch (err) {
-      setIsSwarmActive(!next) // revert the optimistic flip
+      setIsSwarmActive(!next)
       setError(err?.message || 'Autonomous command rejected by backend')
     } finally {
       setBusy(null)

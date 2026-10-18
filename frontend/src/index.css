@@ -15,10 +15,8 @@
 body { margin: 0; min-width: 320px; background: #050505; }
 button { font: inherit; }
 
-/* Strict monospace for all labels, coordinates and data readouts. */
 .font-mono { font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
 
-/* Architectural lidar canvas: faint 1px white dots on a 40px grid. */
 .lidar-grid {
   background-color: #050505;
   background-image:
@@ -28,12 +26,10 @@ button { font: inherit; }
   background-position: 0 0, 20px 20px;
 }
 
-/* Soft volumetric falloff so the point field reads as a scanned volume. */
 .scan-field {
   background: radial-gradient(120% 120% at 50% 42%, rgba(255, 255, 255, 0.035), transparent 62%);
 }
 
-/* Expanding square brackets [ ] marking a breached node. */
 @keyframes breach-expand {
   from { transform: scale(0.82); opacity: 0.95; }
   to   { transform: scale(1.95); opacity: 0; }
@@ -44,14 +40,12 @@ button { font: inherit; }
   animation: breach-expand 1.7s cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
 }
 
-/* Flashing monospace breach readout. */
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.12; }
 }
 .blink { animation: blink 1s steps(1, end) infinite; }
 
-/* Pulsing red marker on an actively spreading compromised node. */
 @keyframes node-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.32; }

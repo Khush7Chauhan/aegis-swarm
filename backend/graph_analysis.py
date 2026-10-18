@@ -14,10 +14,6 @@ def _rows(result: Any) -> list[list[Any]]:
     return list(getattr(result, "result_set", result or []))
 
 
-# --------------------------------------------------------------------------- #
-# Reachability: status-aware, restricted to CONNECTS_TO relationships only.
-# Severed edges (and any non-ACTIVE edge) can never contribute to reachability.
-# --------------------------------------------------------------------------- #
 DATABASE_REACHABILITY_QUERY = (
     "MATCH p = (node:Node {id: $node_id})-[:CONNECTS_TO*]->(database:Node {type: 'Database'}) "
     "WHERE all(rel IN relationships(p) WHERE rel.status = 'ACTIVE') "
@@ -51,9 +47,6 @@ def database_compromised(graph: Any) -> bool:
     return any(row[0] == "COMPROMISED" for row in rows)
 
 
-# --------------------------------------------------------------------------- #
-# Audit / reporting queries
-# --------------------------------------------------------------------------- #
 COMPROMISED_QUERY = "MATCH (n:Node {status: 'COMPROMISED'}) RETURN n.id ORDER BY n.id"
 SEVERED_QUERY = (
     "MATCH (source:Node)-[edge:CONNECTS_TO]->(target:Node) "
@@ -99,9 +92,6 @@ def incident_report_count(graph: Any) -> int:
     return int(rows[0][0]) if rows else 0
 
 
-# --------------------------------------------------------------------------- #
-# Metrics: computed from the live graph where FalkorDB supports it.
-# --------------------------------------------------------------------------- #
 PAGERANK_QUERY = "CALL algo.pageRank('Node', 'CONNECTS_TO') YIELD node, score RETURN node.id, score"
 DEGREE_QUERY = (
     "MATCH (n:Node) OPTIONAL MATCH (n)-[rel:CONNECTS_TO]-(neighbour:Node) "
@@ -127,7 +117,7 @@ def refresh_metrics(graph: Any) -> dict[str, Any]:
                     {"id": node_id, "score": float(score)},
                 )
             pagerank_source = "computed"
-    except Exception as exc:  # pragma: no cover - depends on FalkorDB build
+    except Exception as exc:
         errors.append("pageRank: %s" % exc)
 
     centrality_source = "seed"
@@ -140,7 +130,7 @@ def refresh_metrics(graph: Any) -> dict[str, Any]:
                 {"id": node_id, "value": (degree / max_degree) if max_degree else 0.0},
             )
         centrality_source = "computed"
-    except Exception as exc:  # pragma: no cover - depends on FalkorDB build
+    except Exception as exc:
         errors.append("degreeCentrality: %s" % exc)
 
     return {

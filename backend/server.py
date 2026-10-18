@@ -32,7 +32,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Autonomous warfare engine cadence (seconds).
 RED_INTERVAL_SECONDS = 2.0
 BLUE_INTERVAL_SECONDS = 2.5
 
@@ -42,8 +41,6 @@ red_agent = RedAgent(graph)
 blue_agent = BlueAgent(graph)
 metrics_state: dict[str, Any] = {}
 
-# --- Autonomous simulation state ------------------------------------------- #
-# ``status`` is one of: IDLE, ACTIVE, CONTAINED, BREACHED.
 simulation_state: dict[str, Any] = {"running": False, "status": "IDLE"}
 simulation_task: "asyncio.Task[None] | None" = None
 
@@ -66,7 +63,6 @@ def _append_event(agent: str, message: str, event_type: str, **extra: Any) -> di
         "message": message,
         "type": event_type,
     }
-    # Preserve reasoning / action / decision_source separately from the summary.
     event.update({key: value for key, value in extra.items() if value is not None})
     feed_events.append(event)
     return event
@@ -110,10 +106,9 @@ def _reset_graph() -> dict[str, Any]:
     return metrics_state
 
 
-# Establish a measured, clean baseline when the API boots.
 try:
     _reset_graph()
-except Exception as exc:  # pragma: no cover - defensive; DB may be offline at import
+except Exception as exc:
     feed_events.append(
         {
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -147,14 +142,13 @@ def feed() -> list[dict[str, Any]]:
 async def reset() -> dict[str, Any]:
     global simulation_task
 
-    # A topology reset while the autonomous loop is live would race the agents.
     if simulation_task and not simulation_task.done():
         simulation_task.cancel()
         try:
             await simulation_task
         except asyncio.CancelledError:
             pass
-        except Exception:  # pragma: no cover - defensive
+        except Exception:
             pass
     simulation_task = None
     _set_simulation_state(running=False, status="IDLE")
@@ -223,8 +217,6 @@ def graph_state(include_memory: bool = Query(default=False)) -> dict[str, Any]:
             ))
             for index, row in enumerate(memory_rows):
                 raw_id, agent, reasoning, severity, timestamp, source_id = row
-                # Older IncidentReports predate the ``id`` property; derive a
-                # stable, collision-free handle from the source + timestamp.
                 memory_id = raw_id or "IR-%s-%s" % (source_id, timestamp or index)
                 nodes.append(
                     {
@@ -253,9 +245,6 @@ def graph_state(include_memory: bool = Query(default=False)) -> dict[str, Any]:
     return _run(read_graph)
 
 
-# --------------------------------------------------------------------------- #
-# Autonomous warfare engine
-# --------------------------------------------------------------------------- #
 def _set_simulation_state(*, running: bool, status: str) -> None:
     simulation_state["running"] = running
     simulation_state["status"] = status
@@ -293,7 +282,7 @@ async def simulation_loop() -> None:
                 breached = await asyncio.to_thread(_breach_check)
             except asyncio.CancelledError:
                 raise
-            except Exception as exc:  # pragma: no cover - defensive
+            except Exception as exc:
                 _append_event("SYSTEM", "Red agent fault: %s" % exc, "WARNING")
                 stop_event.set()
                 return
@@ -318,7 +307,7 @@ async def simulation_loop() -> None:
                 contained = await asyncio.to_thread(_containment_check)
             except asyncio.CancelledError:
                 raise
-            except Exception as exc:  # pragma: no cover - defensive
+            except Exception as exc:
                 _append_event("SYSTEM", "Blue agent fault: %s" % exc, "WARNING")
                 stop_event.set()
                 return
@@ -336,8 +325,6 @@ async def simulation_loop() -> None:
     try:
         await asyncio.gather(*workers)
     except asyncio.CancelledError:
-        # stop() cancelled the supervisor task: unwind quietly and re-raise so
-        # the awaiting caller observes a normal cancellation, not an error.
         stop_event.set()
         raise
     finally:
@@ -360,7 +347,6 @@ async def simulation_start() -> dict[str, Any]:
             "message": "Autonomous Stigmergy Engaged",
         }
 
-    # Refuse to spin forever if the current topology is already resolved.
     try:
         if await asyncio.to_thread(database_compromised, graph):
             _set_simulation_state(running=False, status="BREACHED")
@@ -394,7 +380,7 @@ async def simulation_stop() -> dict[str, Any]:
             await simulation_task
         except asyncio.CancelledError:
             pass
-        except Exception:  # pragma: no cover - defensive
+        except Exception:
             pass
     simulation_task = None
     _set_simulation_state(running=False, status="IDLE")
@@ -406,6 +392,5 @@ async def simulation_stop() -> dict[str, Any]:
 def simulation_status() -> dict[str, Any]:
     running = bool(simulation_task and not simulation_task.done())
     if not running and simulation_state["status"] == "ACTIVE":
-        # Task finished/cancelled without a terminal branch; fall back to IDLE.
         _set_simulation_state(running=False, status="IDLE")
     return {"running": running, "status": simulation_state["status"]}

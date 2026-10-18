@@ -14,7 +14,6 @@ def seed_database() -> None:
     """Replace the Aegis graph with the baseline five-node topology."""
     execute_query("MATCH (n) DETACH DELETE n")
 
-    # (id, name, type, centrality, pagerank) -- see module docstring re: seeding.
     nodes = [
         ("gw-1", "PUBLIC-GW", "Internet", 0.12, 0.04),
         ("web-1", "WEB-AUTH-01", "Gateway", 0.68, 0.22),

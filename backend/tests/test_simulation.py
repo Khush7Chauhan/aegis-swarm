@@ -71,7 +71,6 @@ def sim(monkeypatch):
     server.feed_events.clear()
     server._set_simulation_state(running=False, status="IDLE")
     yield graph
-    # Never leak a running task into the next test.
     task = server.simulation_task
     if task and not task.done():
         task.cancel()

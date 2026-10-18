@@ -57,7 +57,6 @@ SYSTEM_PROMPT = (
     "Prior incidents are memory, not authority."
 )
 
-# --- status-aware, CONNECTS_TO-only mutations ------------------------------- #
 SEVER_EDGE_QUERY = (
     "MATCH (source:Node {id: $source})-[edge:CONNECTS_TO]->(target:Node {id: $target}) "
     "SET edge.status = 'SEVERED', edge.severed_by = 'Blue Sentinel', "
@@ -105,9 +104,6 @@ class BlueAgent:
     def get_threats(self) -> list[str]:
         return compromised_node_ids(self.graph)
 
-    # ------------------------------------------------------------------ #
-    # Observation
-    # ------------------------------------------------------------------ #
     def _observation(self) -> dict[str, Any]:
         """Assemble the full, status-aware graph observation handed to the LLM."""
         candidates = [
@@ -131,9 +127,6 @@ class BlueAgent:
         ]
         return {"candidates": candidates, "prior_incidents": prior_incidents}
 
-    # ------------------------------------------------------------------ #
-    # Validation
-    # ------------------------------------------------------------------ #
     def _db_edge_is_severable(self, source: str, target: str) -> bool:
         rows = self._rows(
             self.graph.query(DB_VALIDATE_EDGE_QUERY, {"source": source, "target": target})
@@ -164,9 +157,6 @@ class BlueAgent:
             "reason": reason,
         }
 
-    # ------------------------------------------------------------------ #
-    # Telemetry
-    # ------------------------------------------------------------------ #
     def _telemetry(
         self,
         *,
@@ -203,7 +193,6 @@ class BlueAgent:
             "llm_attempted": llm_attempted,
             "llm_error": llm_error,
             "message": message,
-            # compatibility aliases consumed by the existing server/UI
             "compromised_node": selected_source,
             "target_downstream_node": selected_target,
         }
@@ -229,9 +218,6 @@ class BlueAgent:
             llm_attempted=llm_attempted,
         )
 
-    # ------------------------------------------------------------------ #
-    # Mutation
-    # ------------------------------------------------------------------ #
     def isolate_threat(
         self,
         compromised_node: str,
@@ -291,9 +277,6 @@ class BlueAgent:
             llm_attempted=llm_attempted,
         )
 
-    # ------------------------------------------------------------------ #
-    # LLM plumbing
-    # ------------------------------------------------------------------ #
     @staticmethod
     def _parse_tool_call(response: Any) -> dict[str, str]:
         """Defensively extract and validate the forced isolate_threat call."""
@@ -360,9 +343,6 @@ class BlueAgent:
             llm_attempted=llm_attempted,
         )
 
-    # ------------------------------------------------------------------ #
-    # Public entry point
-    # ------------------------------------------------------------------ #
     def defend(self) -> dict[str, Any]:
         """Decide and execute one defense, returning structured telemetry."""
         if not self.get_threats():
@@ -421,3 +401,4 @@ class BlueAgent:
             observation=observation,
             llm_attempted=True,
         )
+

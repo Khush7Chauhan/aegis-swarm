@@ -15,9 +15,6 @@ const BLUE = '#3b82f6'
 const AMBER = '#d97706'
 const MEMORY = '#a1a1aa'
 
-// Derived visual states. The backend never lies: a node stays `COMPROMISED`
-// once Red infects it. The UI, however, reads each node's topological context
-// so an isolated (contained) threat no longer reads as an active failure.
 const NODE_STATES = {
   HEALTHY: {
     label: 'HEALTHY',
@@ -72,7 +69,6 @@ function nodePosition(node, index) {
   return [point.x, point.y]
 }
 
-// Four corner ticks forming strict square brackets [ ].
 function bracketPath(half, len) {
   const s = half
   const l = len
@@ -84,7 +80,6 @@ function bracketPath(half, len) {
   ].join(' ')
 }
 
-// Instrument crosshair marking a precise lidar data point.
 function Crosshair({ size = 11, color = MUTED }) {
   return <g stroke={color} strokeWidth={0.5} opacity={0.75}>
     <line x1={-size} y1={0} x2={-5} y2={0} />
@@ -98,8 +93,6 @@ export default function Graph({ graph, onSelectNode, selectedNode, showMemory = 
   const nodes = Array.isArray(graph?.nodes) ? graph.nodes : []
   const edges = Array.isArray(graph?.edges) ? graph.edges : []
 
-  // IncidentReport nodes are memory annotation, not physical topology: keep
-  // them out of the structural layout so the existing geometry is untouched.
   const coreNodes = nodes.filter((node) => node.type !== 'IncidentReport')
   const memoryNodes = showMemory ? nodes.filter((node) => node.type === 'IncidentReport') : []
   const structuralEdges = edges.filter((edge) => edge.status !== 'MEMORY_LINK')
@@ -108,18 +101,12 @@ export default function Graph({ graph, onSelectNode, selectedNode, showMemory = 
 
   const positions = Object.fromEntries(coreNodes.map((node, index) => [node.id, nodePosition(node, index)]))
 
-  // Topological context: outbound edge statuses per source node.
   const outboundStatuses = {}
   structuralEdges.forEach((edge) => {
     if (!outboundStatuses[edge.source]) outboundStatuses[edge.source] = []
     outboundStatuses[edge.source].push(edge.status)
   })
 
-  // DERIVED VISUAL STATE -- computed purely from node status + outbound edges.
-  // 1. HEALTHY      : node is not compromised.
-  // 2. ERR_BREACH   : the crown-jewel Database is compromised.
-  // 3. QUARANTINED  : compromised, but every outbound edge is severed.
-  // 4. COMPROMISED  : compromised, with at least one active/attack outbound.
   const deriveNodeState = (node) => {
     if (node.status !== 'COMPROMISED') return 'HEALTHY'
     if (node.type === 'Database') return 'ERR_BREACH'
@@ -128,7 +115,6 @@ export default function Graph({ graph, onSelectNode, selectedNode, showMemory = 
     return hasActiveOutbound ? 'COMPROMISED' : 'QUARANTINED'
   }
 
-  // Anchor each memory node to the compromised node it was generated from.
   const memoryParents = {}
   memoryLinks.forEach((edge) => { memoryParents[edge.target] = edge.source })
   const siblingCount = {}

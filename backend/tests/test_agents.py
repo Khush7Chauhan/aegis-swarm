@@ -19,9 +19,6 @@ from evaluation import run_evaluation
 from graph_analysis import database_reachable, database_reachability_remaining
 
 
-# --------------------------------------------------------------------------- #
-# Fake graph
-# --------------------------------------------------------------------------- #
 class FakeResult:
     def __init__(self, result_set):
         self.result_set = result_set
@@ -167,9 +164,6 @@ class FakeGraph:
         raise AssertionError("FakeGraph received an unexpected query: %s" % c)
 
 
-# --------------------------------------------------------------------------- #
-# Fixtures / builders
-# --------------------------------------------------------------------------- #
 NODES = [
     ("gw-1", "PUBLIC-GW", "Internet", 0.12, 0.04),
     ("web-1", "WEB-AUTH-01", "Gateway", 0.68, 0.22),
@@ -233,9 +227,6 @@ def _no_live_openai(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
 
-# --------------------------------------------------------------------------- #
-# Red
-# --------------------------------------------------------------------------- #
 def test_red_selects_first_downstream_uncompromised_node():
     graph = build_graph()
     red = RedAgent(graph)
@@ -267,9 +258,6 @@ def test_red_blocked_when_all_active_paths_severed():
     assert RedAgent(graph).step() == "Attack blocked: No route to crown jewel"
 
 
-# --------------------------------------------------------------------------- #
-# Blue observation & reachability
-# --------------------------------------------------------------------------- #
 def test_blue_observes_real_candidates():
     graph = build_graph()
     graph.nodes["web-1"]["status"] = "COMPROMISED"
@@ -293,9 +281,6 @@ def test_severed_edges_excluded_from_active_reachability():
     assert database_reachability_remaining(graph) is False
 
 
-# --------------------------------------------------------------------------- #
-# Blue + LLM
-# --------------------------------------------------------------------------- #
 def test_valid_llm_selection_is_mutated():
     graph = build_graph()
     graph.nodes["web-1"]["status"] = "COMPROMISED"
@@ -324,9 +309,7 @@ def test_invalid_llm_selection_is_rejected_then_falls_back():
     assert result["llm_attempted"] is True
     assert result["rejected_selection"]["source"] == "gw-1"
     assert result["rejected_selection"]["validation_result"]["valid"] is False
-    # the invented edge was never created/severed
     assert ("gw-1", "db-core") not in graph.edges
-    # a valid deterministic fallback still protects the crown jewel
     assert result["severed"] is True
 
 
@@ -361,7 +344,7 @@ def test_model_failure_is_marked_fallback_and_error_surfaced():
 def test_missing_api_key_is_fallback_without_llm_attempt():
     graph = build_graph()
     graph.nodes["web-1"]["status"] = "COMPROMISED"
-    blue = BlueAgent(graph, client=None)  # autouse fixture removed OPENAI_API_KEY
+    blue = BlueAgent(graph, client=None)
 
     result = blue.defend()
 
@@ -370,9 +353,6 @@ def test_missing_api_key_is_fallback_without_llm_attempt():
     assert result["severed"] is True
 
 
-# --------------------------------------------------------------------------- #
-# Evaluation scenario
-# --------------------------------------------------------------------------- #
 def test_evaluation_scenario_is_json_serializable_and_correct():
     graph = build_graph()
     red = RedAgent(graph)
@@ -380,7 +360,7 @@ def test_evaluation_scenario_is_json_serializable_and_correct():
 
     result = run_evaluation(lambda: seed_fake(graph), red, blue, graph)
 
-    json.dumps(result)  # must be JSON-serializable for the demo
+    json.dumps(result)
     assert result["decision_source"] == "fallback"
     assert result["blue_actions"] == 1
     assert result["incident_report_count"] == 1
